@@ -4,12 +4,7 @@
  */
 
 
-#include <ngx_config.h>
-#include <ngx_core.h>
-#include <ngx_rtmp.h>
-#include <ngx_rtmp_cmd_module.h>
-#include <ngx_rtmp_codec_module.h>
-#include "ngx_rtmp_mpegts.h"
+#include "ngx_rtmp_hls_module.h"
 
 
 static ngx_rtmp_publish_pt              next_publish;
@@ -30,81 +25,6 @@ static ngx_int_t ngx_rtmp_hls_ensure_directory(ngx_rtmp_session_t *s);
 
 #define NGX_RTMP_HLS_BUFSIZE            (1024*1024)
 #define NGX_RTMP_HLS_DIR_ACCESS         0744
-
-
-typedef struct {
-    uint64_t                            id;
-    double                              duration;
-    unsigned                            active:1;
-    unsigned                            discont:1; /* before */
-} ngx_rtmp_hls_frag_t;
-
-
-typedef struct {
-    ngx_str_t                           suffix;
-    ngx_array_t                         args;
-} ngx_rtmp_hls_variant_t;
-
-
-typedef struct {
-    unsigned                            opened:1;
-
-    ngx_file_t                          file;
-
-    ngx_str_t                           playlist;
-    ngx_str_t                           playlist_bak;
-    ngx_str_t                           var_playlist;
-    ngx_str_t                           var_playlist_bak;
-    ngx_str_t                           stream;
-    ngx_str_t                           name;
-
-    uint64_t                            frag;
-    uint64_t                            frag_ts;
-    ngx_uint_t                          nfrags;
-    ngx_rtmp_hls_frag_t                *frags; /* circular 2 * winfrags + 1 */
-
-    ngx_uint_t                          audio_cc;
-    ngx_uint_t                          video_cc;
-
-    uint64_t                            aframe_base;
-    uint64_t                            aframe_num;
-
-    ngx_buf_t                          *aframe;
-    uint64_t                            aframe_pts;
-
-    ngx_rtmp_hls_variant_t             *var;
-} ngx_rtmp_hls_ctx_t;
-
-
-typedef struct {
-    ngx_str_t                           path;
-    ngx_msec_t                          playlen;
-} ngx_rtmp_hls_cleanup_t;
-
-
-typedef struct {
-    ngx_flag_t                          hls;
-    ngx_msec_t                          fraglen;
-    ngx_msec_t                          max_fraglen;
-    ngx_msec_t                          muxdelay;
-    ngx_msec_t                          sync;
-    ngx_msec_t                          playlen;
-    ngx_uint_t                          winfrags;
-    ngx_flag_t                          continuous;
-    ngx_flag_t                          nested;
-    ngx_str_t                           path;
-    ngx_uint_t                          naming;
-    ngx_uint_t                          slicing;
-    ngx_uint_t                          type;
-    ngx_path_t                         *slot;
-    ngx_msec_t                          max_audio_delay;
-    size_t                              audio_buffer_size;
-    ngx_flag_t                          cleanup;
-    ngx_array_t                        *variant;
-    ngx_str_t                           base_url;
-    ngx_int_t                           granularity;
-} ngx_rtmp_hls_app_conf_t;
-
 
 #define NGX_RTMP_HLS_NAMING_SEQUENTIAL  1
 #define NGX_RTMP_HLS_NAMING_TIMESTAMP   2
@@ -780,7 +700,7 @@ ngx_rtmp_hls_open_fragment(ngx_rtmp_session_t *s, uint64_t ts,
     ngx_int_t discont)
 {
     uint64_t                  id;
-    ngx_uint_t                g;
+    ngx_uint_t                g, i, viewers;
     ngx_rtmp_hls_ctx_t       *ctx;
     ngx_rtmp_hls_frag_t      *f;
     ngx_rtmp_hls_app_conf_t  *hacf;
@@ -832,6 +752,15 @@ ngx_rtmp_hls_open_fragment(ngx_rtmp_session_t *s, uint64_t ts,
         return NGX_ERROR;
     }
 
+    viewers = 0;
+    for (i = 0; i < ctx->nfrags; i++)
+        viewers += ctx->frags[i].hits;
+
+    if (ctx->nfrags < 2)
+        ctx->viewers = viewers; /* avoid division by zero */
+    else
+        ctx->viewers = viewers / (ctx->nfrags - 1); /* the last fragment was just finished and therefore has 0 hits */
+
     ctx->opened = 1;
 
     f = ngx_rtmp_hls_get_frag(s, ctx->nfrags);
@@ -841,6 +770,7 @@ ngx_rtmp_hls_open_fragment(ngx_rtmp_session_t *s, uint64_t ts,
     f->active = 1;
     f->discont = discont;
     f->id = id;
+    f->hits = 0;
 
     ctx->frag_ts = ts;
 

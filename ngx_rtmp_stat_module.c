@@ -13,6 +13,7 @@
 #include "ngx_rtmp_live_module.h"
 #include "ngx_rtmp_play_module.h"
 #include "ngx_rtmp_codec_module.h"
+#include "hls/ngx_rtmp_hls_module.h"
 
 
 static ngx_int_t ngx_rtmp_stat_init_process(ngx_cycle_t *cycle);
@@ -421,6 +422,7 @@ ngx_rtmp_stat_live(ngx_http_request_t *r, ngx_chain_t ***lll,
     u_char                          bbuf[NGX_INT32_LEN];
     ngx_rtmp_stat_loc_conf_t       *slcf;
     u_char                         *cname;
+    ngx_rtmp_hls_ctx_t             *hlsctx;
 
     if (!lacf->live) {
         return;
@@ -459,6 +461,15 @@ ngx_rtmp_stat_live(ngx_http_request_t *r, ngx_chain_t ***lll,
             for (ctx = stream->ctx; ctx; ctx = ctx->next, ++nclients) {
                 s = ctx->session;
                 if (slcf->stat & NGX_RTMP_STAT_CLIENTS) {
+                    hlsctx = ngx_rtmp_get_module_ctx(s, ngx_rtmp_hls_module);
+                    if (hlsctx != NULL)
+                    {
+                        NGX_RTMP_STAT_L("<hls_viewers>");
+                        NGX_RTMP_STAT(bbuf, ngx_snprintf(bbuf, sizeof(bbuf),
+                                      "%D", hlsctx->viewers) - bbuf);
+                        NGX_RTMP_STAT_L("</hls_viewers>");
+                    }
+                        
                     NGX_RTMP_STAT_L("<client>");
 
                     ngx_rtmp_stat_client(r, lll, s);

@@ -28,6 +28,9 @@ HTTP_MODULES="$HTTP_MODULES                                 \
                 ngx_rtmp_control_module                     \
                 "
 
+HTTP_FILTER_MODULES="$HTTP_FILTER_MODULES                   \
+                ngx_rtmp_hls_watch_module                   \
+                "
 
 NGX_ADDON_DEPS="$NGX_ADDON_DEPS                             \
                 $ngx_addon_dir/ngx_rtmp_amf.h               \
@@ -82,6 +85,7 @@ NGX_ADDON_SRCS="$NGX_ADDON_SRCS                             \
                 $ngx_addon_dir/ngx_rtmp_bitop.c             \
                 $ngx_addon_dir/ngx_rtmp_proxy_protocol.c    \
                 $ngx_addon_dir/hls/ngx_rtmp_hls_module.c    \
+                $ngx_addon_dir/hls/ngx_rtmp_hls_watch_module.c \
                 $ngx_addon_dir/dash/ngx_rtmp_dash_module.c  \
                 $ngx_addon_dir/hls/ngx_rtmp_mpegts.c        \
                 $ngx_addon_dir/dash/ngx_rtmp_mp4.c          \

@@ -144,7 +144,7 @@
                 </xsl:if>
             </a>
         </td>
-        <td align="middle"> <xsl:value-of select="nclients"/> </td>
+        <td align="middle"> <xsl:value-of select="nclients"/> ( <xsl:value-of select="hls_viewers"/> ) </td>
         <td>
             <xsl:value-of select="meta/video/codec"/>&#160;<xsl:value-of select="meta/video/profile"/>&#160;<xsl:value-of select="meta/video/level"/>
         </td>
