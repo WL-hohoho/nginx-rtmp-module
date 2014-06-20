@@ -752,14 +752,21 @@ ngx_rtmp_hls_open_fragment(ngx_rtmp_session_t *s, uint64_t ts,
         return NGX_ERROR;
     }
 
-    viewers = 0;
-    for (i = 0; i < ctx->nfrags; i++)
-        viewers += ctx->frags[i].hits;
+    if (ctx->nfrags > 0)
+    {
+        viewers = 0;
 
-    if (ctx->nfrags < 2)
-        ctx->viewers = viewers; /* avoid division by zero */
-    else
-        ctx->viewers = viewers / (ctx->nfrags - 1); /* the last fragment was just finished and therefore has 0 hits */
+        for (i = 0; i < ctx->nfrags - 1; i++)
+        {
+            f = ngx_rtmp_hls_get_frag(s, i);
+            viewers += f->hits;
+        }
+
+        if (ctx->nfrags == 1)
+            ctx->viewers = viewers; /* avoid division by zero */
+        else
+            ctx->viewers = viewers / (ctx->nfrags - 1); /* the last fragment was just finished and therefore has 0 hits */
+    }
 
     ctx->opened = 1;
 
